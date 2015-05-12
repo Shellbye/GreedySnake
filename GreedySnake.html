@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+    <meta charset="UTF-8">
+    <meta name="author" content="shellbye">
+    <meta name="co-author" content="baybaylee">
+    <title>Greedy Snake</title>
+    <style>
+        #zone{
+            float: left;
+        }
+        #control{
+            margin-left: 5px;
+            float: left;
+            padding: 20px 10px 20px 10px;
+            border: 1px solid #000;
+            height: 346px;
+        }
+        #control input{
+            width: 50px;
+        }
+        .column {
+            width: 20px;
+            height: 20px;
+            border: 1px solid #000;
+            display: inline-block;
+            margin-left: 1px;
+            margin-top: -2px;
+        }
+
+        .row {
+            padding-left: 10px;
+        }
+    </style>
+</head>
+<body onkeydown="keyDown()">
+<div id="zone"></div>
+<div id="control">
+    <label for="width">
+        width:<input id="width" value="15">
+    </label>
+    <label for="height">
+        height:<input id="height" value="17">
+    </label>
+    <button id="set" onclick="init()">set</button>
+    <p>Press P or Space to Start/Pause</p>
+    <p>You can use both</p>
+    <p style="margin-left: 50px">↑↓←→</p>
+    <p>and</p>
+    <p style="margin-left: 55px">W S A D</p>
+    <P>to control.</P>
+    <label for="score">
+        Your score:<input id="score" readonly value="0">
+        <br>
+        Top  score: <input id="Tscore" readonly value="0"> of <span id="topUser"></span>
+    </label>
+    <p>By
+        <a href="http://baybaylee.github.io/" target="_blank">BaybayLee</a> &
+        <a href="http://shellbye.com" target="_blank">Shellbye</a>
+    </p>
+    <p>Source code is <a href="https://github.com/Shellbye/GreedySnake" target="_blank">here</a></p>
+</div>
+</body>
+<script>
+    // left=37, up=38, right=39, down=40
+    const U = 38;
+    const D = 40;
+    const L = 37;
+    const R = 39;
+    var debug = true;
+    var enableWASD = true;
+    var width = 25;
+    var height = 25;
+    var direction = U;
+    var stepPerSecond = 1;
+    var autoMove;
+    var sHead;
+    var sTail;
+    var previousNodePosition;
+    var stopped = 1;
+    var speed = 1000;
+    var isGameOver = false;
+    var score = 0;
+    window.onload = function () {
+        init();
+    };
+
+    function begin() {
+        autoMove = setInterval("move(direction)", speed);
+    }
+
+    function SnakeNode(x, y, index, nextNode){
+        var div = document.querySelector('[x="' + x.toString() + '"][y="' + y.toString() + '"]');
+        div.style.background = "black";
+        if(index == 0){
+            div.setAttribute("id", "head");
+        }
+
+        this.index = index;
+        this.divNode = div;
+        this.nextNode = nextNode;
+        this.sMove = function(){
+            if(this.nextNode == null){
+                this.divNode.style.background = "";
+            }
+            var temp = this.divNode;
+            this.divNode = previousNodePosition;
+            previousNodePosition = temp;
+            if(this.nextNode != null){
+                this.nextNode.sMove();
+            }
+        }
+    }
+
+    function init() {
+        width = document.getElementById("width").value;
+        height = document.getElementById("height").value;
+        document.getElementById("Tscore").value = localStorage.getItem("topScore") == null ? 0 : localStorage.getItem("topScore");
+        document.getElementById("topUser").innerHTML = localStorage.getItem("topUser") == null ? null : localStorage.getItem("topUser");
+        direction = U;
+        stepPerSecond = 1;
+        sHead = null;
+        sTail = null;
+        previousNodePosition = null;
+        stopped = 1;
+        speed = 1000;
+        isGameOver = false;
+        score = 0;
+        clearInterval(autoMove);
+        document.getElementById("score").setAttribute("value", score.toString());
+        document.getElementById("zone").innerHTML = "";
+        initMap();
+        initSnake(3);
+        initFood();
+    }
+
+    function initMap() {
+        var zone = document.getElementById("zone");
+        for (var i = 1; i <= height; i++) {
+            var row = document.createElement("div");
+            row.setAttribute("class", "row");
+            initRow(row, width, i.toString());
+            zone.appendChild(row);
+        }
+    }
+
+    function initRow(map, width, y) {
+        for (var i = 1; i <= width; i++) {
+            var common = document.createElement("div");
+            common.setAttribute("class", "column");
+            common.setAttribute("x", i.toString());
+            common.setAttribute("y", y);
+            map.appendChild(common);
+        }
+    }
+
+    function initSnake(initLength) {
+        var x = Math.round(width / 2);
+        var y = Math.round(height / 2);
+        sHead = new SnakeNode(x, y, 0, null);
+        sTail = sHead;
+        for(var i=1; i < initLength; i++){
+            var snakeBody = new SnakeNode(x, y + i, i, null);
+            sTail.nextNode = snakeBody;
+            sTail = snakeBody;
+        }
+    }
+
+    function keyDown() {
+        // left=37, up=38, right=39, down=40
+        // A=65, W=87, D=68, S=83
+        var event = arguments.callee.caller.arguments[0] || event;
+        var code = event.which;
+        if(isGameOver){
+            return;
+        }
+        if ((code >= 37 && code <= 40) || (enableWASD && (code == 65 || code == 87 || code == 68 || code == 83))) {
+            if(stopped == 1){
+                autoMove = setInterval("move(direction)", speed);
+                stopped = 0;
+            }
+            move(code);
+        }else if(code == 80 || code == 32){
+            // 'P'=80, 'Space'=32
+            if(stopped == 0){
+                clearInterval(autoMove);
+                stopped = 1;
+            }else if(stopped == 1){
+                autoMove = setInterval("move(direction)", speed);
+                stopped = 0;
+            }
+        }
+    }
+
+    function move(code) {
+        var x = sHead.divNode.getAttribute("x");
+        var y = sHead.divNode.getAttribute("y");
+        sHead.divNode.removeAttribute("id");
+        var newHead = "";
+        var coordinate = "";
+        switch (code) {
+            case 65:
+                code = 37;
+            case 37://left
+                coordinate = parseInt(x) - 1;
+                newHead = document.querySelector('[x="' + coordinate.toString() + '"][y="' + y.toString() + '"]');
+                break;
+            case 87:
+                code = 38;
+            case 38://up
+                coordinate = parseInt(y) - 1;
+                newHead = document.querySelector('[x="' + x.toString() + '"][y="' + coordinate.toString() + '"]');
+                break;
+            case 68:
+                code = 39;
+            case 39://right
+                coordinate = parseInt(x) + 1;
+                newHead = document.querySelector('[x="' + coordinate.toString() + '"][y="' + y.toString() + '"]');
+                break;
+            case 83:
+                code = 83;
+            case 40://down
+                coordinate = parseInt(y) + 1;
+                newHead = document.querySelector('[x="' + x.toString() + '"][y="' + coordinate.toString() + '"]');
+                break;
+        }
+        if (newHead == null) {
+            gameOver();
+            return;
+        }
+        newHead.style.background = "black";
+        newHead.setAttribute("id", "head");
+        previousNodePosition = sHead.divNode;
+        sHead.divNode = newHead;
+        direction = code;
+        sHead.nextNode.sMove();
+        if (canEat()) {
+            eat();
+            initFood();
+        }
+    }
+
+    function gameOver(){
+        clearInterval(autoMove);
+        var topScore = localStorage.getItem("topScore");
+        if(topScore == null || topScore < score){
+            localStorage.setItem("topScore", score);
+            var topUsername = prompt("Cong!New Record!Your name:");
+            localStorage.setItem("topUser", topUsername);
+        }
+        isGameOver = true;
+        alert("Game over!");
+        console.log("Game over!");
+        init();
+    }
+
+    function initFood() {
+        while(true){
+            var x = Math.floor(Math.random() * width) + 1;
+            var y = Math.floor(Math.random() * height) + 1;
+            var food = document.querySelector('[x="' + x.toString() + '"][y="' + y.toString() + '"]');
+            var head = document.getElementById("head");
+            if (head.isEqualNode(food)) {
+                continue;
+            }
+            console.log("food:(" + x + "," + y + ")");
+            food.style.background = "red";
+            food.setAttribute("isFood", "1");
+            break;
+        }
+    }
+
+    function canEat() {
+        var food = document.querySelector('[isFood="1"]');
+        if (sHead.divNode.isEqualNode(food)) {
+            console.log("Can eat!");
+            return true;
+        }
+        return false;
+    }
+
+    function eat(){
+        sHead.divNode.removeAttribute("isFood");
+        var newNode = new SnakeNode(sTail.divNode.getAttribute("x"),sTail.divNode.getAttribute("y"),sTail.index + 1, null);
+        newNode.divNode = previousNodePosition;
+        sTail.nextNode = newNode;
+        sTail = newNode;
+        score++;
+        document.getElementById("score").setAttribute("value", score.toString());
+    }
+</script>
+</html>
